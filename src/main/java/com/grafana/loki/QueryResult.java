@@ -1,6 +1,15 @@
 package com.grafana.loki;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -33,7 +42,19 @@ public class QueryResult {
   private String status;
   private Data data;
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   static class Data {
+
+    public String getResultType() {
+      return resultType;
+    }
+
+    public void setResultType(String resultType) {
+      this.resultType = resultType;
+    }
+
+    private String resultType;
+
     public List<Stream> getStreams() {
       return streams;
     }
@@ -42,6 +63,7 @@ public class QueryResult {
       this.streams = streams;
     }
 
+    @JsonProperty("result")
     private List<Stream> streams;
   }
 
@@ -62,10 +84,12 @@ public class QueryResult {
       this.values = values;
     }
 
+    @JsonProperty("stream")
     private Map<String, String> labels;
     private List<LogEntry> values;
   }
 
+  @JsonDeserialize(using = LogEntryDeserializer.class)
   static class LogEntry {
     public Long getTs() {
       return ts;
@@ -85,5 +109,21 @@ public class QueryResult {
 
     private Long ts;
     private String line;
+  }
+
+  static class LogEntryDeserializer extends StdDeserializer<LogEntry> {
+    LogEntryDeserializer() {
+      super(LogEntry.class);
+    }
+
+    @Override
+    public LogEntry deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      final JsonNode node = p.getCodec().readTree(p);
+      LogEntry entry = new LogEntry();
+      entry.setTs(node.get(0).asLong());
+      entry.setLine(node.get(1).asText());
+      return entry;
+    }
+
   }
 }
