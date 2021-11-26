@@ -1,10 +1,10 @@
 package com.grafana.loki;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
 import java.io.IOException;
 import java.io.InputStream;
-
 import org.junit.jupiter.api.Test;
 
 public class QueryResultTest {
@@ -15,6 +15,7 @@ public class QueryResultTest {
     QueryResult result = QueryResult.fromJSON(input);
 
     // TODO: use hamcrest
-    assertEquals(56, result.getData().getStreams().get(0).getValues().size());
+    var values = result.getData().getStreams().get(0).getValues();
+    assertThat(values, hasSize(56));
   }
 }

@@ -9,8 +9,11 @@ import org.apache.kafka.connect.source.SourceConnector;
 
 public class LokiSourceConnector extends SourceConnector {
   public static final String ENDPOINT_CONFIG = "endpoint";
-  public static final String QUERY_CONFIG = "endpoint";
+  public static final String USERNAME_CONFIG = "username";
+  public static final String PASSWORD_CONFIG = "password";
+  public static final String QUERY_CONFIG = "query";
   public static final String TOPIC_CONFIG = "topic";
+  public static final String START_CONFIG = "start";
 
   private String topic;
 

@@ -7,7 +7,13 @@ import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.hc.client5.http.fluent.Request;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.net.URIBuilder;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -25,7 +31,9 @@ public class LokiSourceTask extends SourceTask {
   private String lokiEndpoint;
   private String lokiQuery;
   private String topic;
-  private Long lastTimestamp;
+  private Long lastTimestamp = 0L;
+
+  private String authHeader;
 
   @Override
   public String version() {
@@ -37,6 +45,17 @@ public class LokiSourceTask extends SourceTask {
     lokiEndpoint = props.get(LokiSourceConnector.ENDPOINT_CONFIG);
     lokiQuery = props.get(LokiSourceConnector.QUERY_CONFIG);
     topic = props.get(LokiSourceConnector.TOPIC_CONFIG);
+
+    if (props.containsKey(LokiSourceConnector.START_CONFIG)) {
+      lastTimestamp = Long.parseLong(props.get(LokiSourceConnector.START_CONFIG));
+    } else {
+      lastTimestamp = now() - ONE_HOUR;
+    }
+
+    final String user = props.get(LokiSourceConnector.USERNAME_CONFIG);
+    final String password = props.get(LokiSourceConnector.PASSWORD_CONFIG);
+
+    authHeader = "Basic " + Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
   }
 
   @Override
@@ -50,8 +69,8 @@ public class LokiSourceTask extends SourceTask {
   public synchronized void stop() {}
 
   @Override
-  public List<SourceRecord> poll() throws InterruptedException {
-    try {
+  public List<SourceRecord> poll() {
+    try (CloseableHttpClient client = HttpClients.createDefault()) {
       final Long start = lastTimestamp + 1L;
       final URI uri =
           new URIBuilder(lokiEndpoint + "/loki/api/v1/query_range")
@@ -61,25 +80,46 @@ public class LokiSourceTask extends SourceTask {
               .addParameter("direction", "forward")
               .build();
 
-      final InputStream content = Request.get(uri).execute().returnContent().asStream();
-      final QueryResult result = QueryResult.fromJSON(content);
+      HttpGet request = new HttpGet(uri);
+      request.setHeader("Authorization", authHeader);
+      try (CloseableHttpResponse response = client.execute(request)) {
+        final HttpEntity entity = response.getEntity();
 
-      return result.getData().getStreams().stream()
-          .map(QueryResult.Stream::getValues)
-          .flatMap(Collection::stream)
-          .map(
-              entry -> {
-                final String line = entry.getLine();
-                this.lastTimestamp = entry.getTs();
-                Map<String, String> sourcePartition = Collections.emptyMap();
-                return new SourceRecord(
-                    sourcePartition,
-                    offsetValue(this.lastTimestamp),
-                    topic,
-                    Schema.STRING_SCHEMA,
-                    line);
-              })
-          .collect(Collectors.toList());
+        if (response.getCode() != 200) {
+          try {
+            final String content = EntityUtils.toString(entity);
+            log.error("Could not fetch logs: {}:{}", response.getCode(), content);
+            return null;
+          } catch (ParseException e) {
+            log.error("Could not read error message", e);
+          }
+        }
+
+        final InputStream content = entity.getContent();
+        final QueryResult result = QueryResult.fromJSON(content);
+
+        var records =
+            result.getData().getStreams().stream()
+                .map(QueryResult.Stream::getValues)
+                .flatMap(Collection::stream)
+                .map(
+                    entry -> {
+                      final String line = entry.getLine();
+                      this.lastTimestamp = entry.getTs();
+                      Map<String, String> sourcePartition = Collections.emptyMap();
+                      return new SourceRecord(
+                          sourcePartition,
+                          offsetValue(this.lastTimestamp),
+                          topic,
+                          Schema.STRING_SCHEMA,
+                          line);
+                    })
+                .collect(Collectors.toList());
+
+        EntityUtils.consume(entity);
+        return records;
+      }
+
     } catch (IOException e) {
       log.error("Could not load batch from Loki", e);
     } catch (URISyntaxException e) {
@@ -87,6 +127,8 @@ public class LokiSourceTask extends SourceTask {
     }
     return null;
   }
+
+  static long ONE_HOUR = 3600000000000L;
 
   private Long now() {
     // This precision is fine for us since we control the offset.

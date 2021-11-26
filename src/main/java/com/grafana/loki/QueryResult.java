@@ -2,14 +2,12 @@ package com.grafana.loki;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -86,6 +84,7 @@ public class QueryResult {
 
     @JsonProperty("stream")
     private Map<String, String> labels;
+
     private List<LogEntry> values;
   }
 
@@ -124,6 +123,5 @@ public class QueryResult {
       entry.setLine(node.get(1).asText());
       return entry;
     }
-
   }
 }
