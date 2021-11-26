@@ -5,10 +5,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.hc.client5.http.fluent.Request;
 import org.apache.hc.core5.net.URIBuilder;
 import org.apache.kafka.connect.data.Schema;
@@ -66,23 +64,22 @@ public class LokiSourceTask extends SourceTask {
       final InputStream content = Request.get(uri).execute().returnContent().asStream();
       final QueryResult result = QueryResult.fromJSON(content);
 
-      var records = new ArrayList<SourceRecord>();
-      for (QueryResult.Stream stream : result.getData().getStreams()) {
-        for (QueryResult.LogEntry entry : stream.getValues()) {
-          final String line = entry.getLine();
-          Map<String, String> sourcePartition = Collections.emptyMap();
-          var record =
-              new SourceRecord(
-                  sourcePartition,
-                  offsetValue(this.lastTimestamp),
-                  topic,
-                  Schema.STRING_SCHEMA,
-                  line);
-          records.add(record);
-        }
-      }
-
-      return records;
+      return result.getData().getStreams().stream()
+          .map(QueryResult.Stream::getValues)
+          .flatMap(Collection::stream)
+          .map(
+              entry -> {
+                final String line = entry.getLine();
+                this.lastTimestamp = entry.getTs();
+                Map<String, String> sourcePartition = Collections.emptyMap();
+                return new SourceRecord(
+                    sourcePartition,
+                    offsetValue(this.lastTimestamp),
+                    topic,
+                    Schema.STRING_SCHEMA,
+                    line);
+              })
+          .collect(Collectors.toList());
     } catch (IOException e) {
       log.error("Could not load batch from Loki", e);
     } catch (URISyntaxException e) {

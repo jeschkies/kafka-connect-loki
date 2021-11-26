@@ -8,8 +8,9 @@ import java.util.Map;
 
 public class QueryResult {
 
+  static ObjectMapper mapper = new ObjectMapper();
+
   public static QueryResult fromJSON(InputStream input) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
     return mapper.readValue(input, QueryResult.class);
   }
 
@@ -66,11 +67,11 @@ public class QueryResult {
   }
 
   static class LogEntry {
-    public String getTs() {
+    public Long getTs() {
       return ts;
     }
 
-    public void setTs(String ts) {
+    public void setTs(Long ts) {
       this.ts = ts;
     }
 
@@ -82,7 +83,7 @@ public class QueryResult {
       this.line = line;
     }
 
-    private String ts;
+    private Long ts;
     private String line;
   }
 }
