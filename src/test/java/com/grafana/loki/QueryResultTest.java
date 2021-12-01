@@ -11,11 +11,11 @@ public class QueryResultTest {
   @Test
   void deserialize() throws IOException {
     final InputStream input =
-        Thread.currentThread().getContextClassLoader().getResourceAsStream("karsten.json");
+        Thread.currentThread().getContextClassLoader().getResourceAsStream("result.json");
     QueryResult result = QueryResult.fromJSON(input);
 
     // TODO: use hamcrest
     var values = result.getData().getStreams().get(0).getValues();
-    assertThat(values, hasSize(56));
+    assertThat(values, hasSize(100));
   }
 }
