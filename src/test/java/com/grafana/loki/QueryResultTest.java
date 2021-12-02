@@ -14,7 +14,6 @@ public class QueryResultTest {
         Thread.currentThread().getContextClassLoader().getResourceAsStream("result.json");
     QueryResult result = QueryResult.fromJSON(input);
 
-    // TODO: use hamcrest
     var values = result.getData().getStreams().get(0).getValues();
     assertThat(values, hasSize(100));
   }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,6 +93,7 @@ public class LokiSourceTask extends SourceTask {
             return null;
           } catch (ParseException e) {
             log.error("Could not read error message", e);
+            return null;
           }
         }
 
@@ -128,7 +130,7 @@ public class LokiSourceTask extends SourceTask {
     return null;
   }
 
-  static long ONE_HOUR = 3600000000000L;
+  static long ONE_HOUR = Duration.ofHours(1).toNanos();
 
   private Long now() {
     // This precision is fine for us since we control the offset.
