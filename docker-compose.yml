@@ -1,0 +1,112 @@
+version: '3.4'
+services:
+  loki:
+    image: 'grafana/loki:2.4.1'
+    command:
+    - "-config.file=/mnt/config/loki-config.yaml"
+    - "-log.level=debug"
+    - "-target=all"
+    ports:
+    - 127.0.0.1:3100:3100
+    volumes:
+    - ./demo/loki-config.yaml:/mnt/config/loki-config.yaml:z
+
+  promtail:
+    image: grafana/promtail:2.1.0
+    command: ["-config.file=/etc/promtail/docker-config.yaml", "-log.level=debug"]
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:z
+      - ./demo/promtail-config.yml:/etc/promtail/docker-config.yaml:z
+
+  grafana:
+    image: grafana/grafana
+    ports:
+    - 127.0.0.1:3000:3000
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        cat > /etc/grafana/provisioning/datasources/logs.yaml <<EOF
+        apiVersion: 1
+        datasources:
+          - name: Loki
+            type: loki
+            access: proxy
+            orgID: 1
+            url: http://loki:3100
+        EOF
+        exec /run.sh
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper 
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: kafka-connect
+    depends_on:
+      - zookeeper
+      - broker 
+    ports:
+      - 8083:8083
+    volumes:
+      - ./build/libs:/usr/share/java/kafka-connect-loki
+      - ./demo/connect-loki.properties:/etc/kafka/connect-loki.properties
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "broker:29092"
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect 
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect 
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status 
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter 
+      CONNECT_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      CONNECT_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+  kcat:
+    image: edenhill/kcat:1.7.0
+    depends_on:
+      - broker
+      - zookeeper
+      - kafka-connect
+    # command: ["-C", "-b", "broker:29092", "-t", "loki"]
+    entrypoint:
+    - /bin/sh
+    - -c
+    - |
+      apk add curl jq;
+      while [ 1 -eq 1 ];do sleep 60;done
+
+  log-gen:
+    image: mingrammer/flog
+    command: ["-f", "json", "-l", "-d", "1s", "-n", "2"]
+    logging:
+      driver: "json-file"
+    depends_on:
+    - loki

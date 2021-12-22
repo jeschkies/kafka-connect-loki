@@ -15,11 +15,35 @@ public class LokiSourceConnector extends SourceConnector {
   public static final String TOPIC_CONFIG = "topic";
   public static final String START_CONFIG = "start";
 
+  private static final ConfigDef CONFIG_DEF =
+      new ConfigDef()
+          .define(
+              ENDPOINT_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.HIGH,
+              "The Loki endpoint")
+          .define(
+              USERNAME_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.LOW,
+              "The Loki user name")
+          .define(
+              PASSWORD_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.LOW,
+              "The Loki user password")
+          .define(QUERY_CONFIG, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The Loki query")
+          .define(
+              TOPIC_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.HIGH,
+              "The topic to publish data to");
+
   private String topic;
 
   @Override
   public ConfigDef config() {
-    return null;
+    return CONFIG_DEF;
   }
 
   @Override
