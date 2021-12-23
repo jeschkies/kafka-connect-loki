@@ -53,8 +53,8 @@ public class LokiSourceTask extends SourceTask {
       lastTimestamp = now() - ONE_HOUR;
     }
 
-    final String user = props.get(LokiSourceConnector.USERNAME_CONFIG);
-    final String password = props.get(LokiSourceConnector.PASSWORD_CONFIG);
+    final String user = props.getOrDefault(LokiSourceConnector.USERNAME_CONFIG, "");
+    final String password = props.getOrDefault(LokiSourceConnector.PASSWORD_CONFIG, "");
 
     if (user.isEmpty() && password.isEmpty()) {
       authHeader =
@@ -128,7 +128,7 @@ public class LokiSourceTask extends SourceTask {
       }
 
     } catch (IOException e) {
-      log.error("Could not load batch from Loki", e);
+      log.error(String.format("Could not load batch from Loki at %s", lokiEndpoint), e);
     } catch (URISyntaxException e) {
       log.error("Could not build Loki query URI", e);
     }

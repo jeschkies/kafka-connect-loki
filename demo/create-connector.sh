@@ -3,7 +3,7 @@ docker-compose exec kcat curl -X PUT -H "Content-Type: application/json" \
     http://kafka-connect:8083/connectors/log-gen/config \
      -d '{
           "connector.class":"com.grafana.loki.LokiSourceConnector",
-          "endpoint": "loki:3100",
+          "endpoint": "http://loki:3100",
           "username": "",
           "password": "",
           "query": "{job=\"docker\"}",
