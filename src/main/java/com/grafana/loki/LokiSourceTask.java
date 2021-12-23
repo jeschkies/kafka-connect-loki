@@ -76,11 +76,12 @@ public class LokiSourceTask extends SourceTask {
   public List<SourceRecord> poll() {
     try (CloseableHttpClient client = HttpClients.createDefault()) {
       final Long start = lastTimestamp + 1L;
+      final Long end = now();
       final URI uri =
           new URIBuilder(lokiEndpoint + "/loki/api/v1/query_range")
               .addParameter("query", lokiQuery)
               .addParameter("start", start.toString())
-              .addParameter("end", now().toString())
+              .addParameter("end", end.toString())
               .addParameter("direction", "forward")
               .build();
 
@@ -123,6 +124,8 @@ public class LokiSourceTask extends SourceTask {
                     })
                 .collect(Collectors.toList());
 
+        log.debug("Fetched {} records from {} to {}", records.size(), start, end);
+
         EntityUtils.consume(entity);
         return records;
       }
@@ -138,7 +141,7 @@ public class LokiSourceTask extends SourceTask {
   static long ONE_HOUR = Duration.ofHours(1).toNanos();
 
   private Long now() {
-    // This precision is fine for us since we control the offset.
+    // This precision is fine for now()us since we control the offset.
     var now = Instant.now();
     return now.getEpochSecond() * 1000000000L; // as nano seconds
   }

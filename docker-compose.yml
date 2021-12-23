@@ -88,13 +88,15 @@ services:
       CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect=DEBUG"
 
-  kcat:
+  shell:
     image: edenhill/kcat:1.7.0
     depends_on:
       - broker
       - zookeeper
       - kafka-connect
+      - loki
     # command: ["-C", "-b", "broker:29092", "-t", "loki"]
     entrypoint:
     - /bin/sh
