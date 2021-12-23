@@ -1,6 +1,7 @@
 package com.grafana.loki;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
@@ -15,16 +16,51 @@ public class LokiSourceConnector extends SourceConnector {
   public static final String TOPIC_CONFIG = "topic";
   public static final String START_CONFIG = "start";
 
+  private static final ConfigDef CONFIG_DEF =
+      new ConfigDef()
+          .define(
+              ENDPOINT_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.HIGH,
+              "The Loki endpoint")
+          .define(
+              USERNAME_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.LOW,
+              "The Loki user name")
+          .define(
+              PASSWORD_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.LOW,
+              "The Loki user password")
+          .define(QUERY_CONFIG, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The Loki query")
+          .define(
+              TOPIC_CONFIG,
+              ConfigDef.Type.STRING,
+              ConfigDef.Importance.HIGH,
+              "The topic to publish data to");
+
+  private String endpoint;
+  private String username;
+  private String password;
+  private String query;
   private String topic;
+  private String start;
 
   @Override
   public ConfigDef config() {
-    return null;
+    return CONFIG_DEF;
   }
 
   @Override
   public void start(Map<String, String> props) {
     topic = props.get(TOPIC_CONFIG);
+    endpoint = props.get(ENDPOINT_CONFIG);
+    query = props.get(QUERY_CONFIG);
+    username = props.get(USERNAME_CONFIG);
+    password = props.get(PASSWORD_CONFIG);
+
+    start = props.getOrDefault(START_CONFIG, null);
   }
 
   @Override
@@ -33,7 +69,20 @@ public class LokiSourceConnector extends SourceConnector {
   @Override
   public List<Map<String, String>> taskConfigs(int maxTasks) {
     // TODO: Determine how many tasks we have. For now we do not support sharding.
-    return Collections.emptyList();
+    Map<String, String> config = new HashMap<>();
+    config.put(ENDPOINT_CONFIG, endpoint);
+    config.put(QUERY_CONFIG, query);
+    config.put(TOPIC_CONFIG, topic);
+
+    // TODO: make credentials optional
+    config.put(USERNAME_CONFIG, username);
+    config.put(PASSWORD_CONFIG, password);
+
+    if (start != null) {
+      config.put(START_CONFIG, start);
+    }
+
+    return Collections.singletonList(config);
   }
 
   @Override
