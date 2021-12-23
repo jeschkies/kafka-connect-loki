@@ -1,6 +1,7 @@
 package com.grafana.loki;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
@@ -39,7 +40,12 @@ public class LokiSourceConnector extends SourceConnector {
               ConfigDef.Importance.HIGH,
               "The topic to publish data to");
 
+  private String endpoint;
+  private String username;
+  private String password;
+  private String query;
   private String topic;
+  private String start;
 
   @Override
   public ConfigDef config() {
@@ -49,6 +55,12 @@ public class LokiSourceConnector extends SourceConnector {
   @Override
   public void start(Map<String, String> props) {
     topic = props.get(TOPIC_CONFIG);
+    endpoint = props.get(ENDPOINT_CONFIG);
+    query = props.get(QUERY_CONFIG);
+    username = props.get(USERNAME_CONFIG);
+    password = props.get(PASSWORD_CONFIG);
+
+    start = props.getOrDefault(START_CONFIG, null);
   }
 
   @Override
@@ -57,7 +69,20 @@ public class LokiSourceConnector extends SourceConnector {
   @Override
   public List<Map<String, String>> taskConfigs(int maxTasks) {
     // TODO: Determine how many tasks we have. For now we do not support sharding.
-    return Collections.emptyList();
+    Map<String, String> config = new HashMap<>();
+    config.put(ENDPOINT_CONFIG, endpoint);
+    config.put(QUERY_CONFIG, query);
+    config.put(TOPIC_CONFIG, topic);
+
+    // TODO: make credentials optional
+    config.put(USERNAME_CONFIG, username);
+    config.put(PASSWORD_CONFIG, password);
+
+    if (start != null) {
+      config.put(START_CONFIG, start);
+    }
+
+    return Collections.singletonList(config);
   }
 
   @Override

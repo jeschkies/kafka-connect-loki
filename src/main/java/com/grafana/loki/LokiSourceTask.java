@@ -56,7 +56,10 @@ public class LokiSourceTask extends SourceTask {
     final String user = props.get(LokiSourceConnector.USERNAME_CONFIG);
     final String password = props.get(LokiSourceConnector.PASSWORD_CONFIG);
 
-    authHeader = "Basic " + Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
+    if (user.isEmpty() && password.isEmpty()) {
+      authHeader =
+          "Basic " + Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
+    }
   }
 
   @Override
@@ -82,7 +85,9 @@ public class LokiSourceTask extends SourceTask {
               .build();
 
       HttpGet request = new HttpGet(uri);
-      request.setHeader("Authorization", authHeader);
+      if (authHeader != null) {
+        request.setHeader("Authorization", authHeader);
+      }
       try (CloseableHttpResponse response = client.execute(request)) {
         final HttpEntity entity = response.getEntity();
 
